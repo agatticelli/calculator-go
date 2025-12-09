@@ -15,6 +15,17 @@ Pure mathematical calculation library for trading position sizing, risk manageme
 - **PnL Calculations**: Calculate profit/loss in both nominal and percentage terms
 - **Distance Calculations**: Calculate percentage distance to target prices
 
+## Dependencies
+
+This module uses **[trading-common-types](https://github.com/agatticelli/trading-common-types)** for the `Side` type. This ensures type compatibility across all trading system modules.
+
+```go
+import "github.com/agatticelli/trading-common-types"
+
+// All functions use types.Side
+func (c *Calculator) CalculateSize(..., side types.Side) float64
+```
+
 ## Installation
 
 ```bash
@@ -26,7 +37,7 @@ go get github.com/agatticelli/calculator-go
 ```go
 import (
     "github.com/agatticelli/calculator-go"
-    "github.com/agatticelli/trading-go/broker"
+    "github.com/agatticelli/trading-common-types"
 )
 
 // Create calculator instance
@@ -34,30 +45,32 @@ calc := calculator.New(125) // max leverage 125x
 
 // Calculate position size based on risk
 size := calc.CalculateSize(
-    1000.0,           // account balance
-    2.0,              // risk percent (2%)
-    3950.0,           // entry price
-    3900.0,           // stop loss
-    broker.SideLong,  // position side
+    1000.0,            // account balance
+    2.0,               // risk percent (2%)
+    3950.0,            // entry price
+    3900.0,            // stop loss
+    types.SideLong,    // position side (from trading-common-types)
 )
 
 // Calculate required leverage
 leverage := calc.CalculateLeverage(size, 3950.0, 1000.0, 125)
 
 // Calculate take profit based on risk-reward ratio
-tp := calc.CalculateRRTakeProfit(3950.0, 3900.0, 2.0, broker.SideLong)
+tp := calc.CalculateRRTakeProfit(3950.0, 3900.0, 2.0, types.SideLong)
 
 // Calculate expected PnL
 nominal, percent := calc.CalculateExpectedPnL(
-    broker.SideLong,
+    types.SideLong,
     3950.0,  // entry
     4000.0,  // exit
     0.5,     // size
 )
 
 // Validate price logic
-err := calc.ValidatePriceLogic(broker.SideLong, 3950.0, 4000.0)
+err := calc.ValidatePriceLogic(types.SideLong, 3950.0, 4000.0)
 ```
+
+For complete working examples, see the [examples/](examples/) directory.
 
 ## API Reference
 
@@ -66,7 +79,7 @@ err := calc.ValidatePriceLogic(broker.SideLong, 3950.0, 4000.0)
 #### `New(maxLeverage int) *Calculator`
 Creates a new calculator instance with specified max leverage.
 
-#### `CalculateSize(balance, riskPercent, entry, stopLoss float64, side broker.Side) float64`
+#### `CalculateSize(balance, riskPercent, entry, stopLoss float64, side Side) float64`
 Calculates position size based on risk.
 - Formula: `size = (balance * risk%) / |entry - stopLoss|`
 
@@ -74,40 +87,54 @@ Calculates position size based on risk.
 Calculates required leverage for a position.
 - Formula: `leverage = ceil((size * price) / balance)`
 
-#### `CalculateRRTakeProfit(entry, stopLoss, rrRatio float64, side broker.Side) float64`
+#### `CalculateRRTakeProfit(entry, stopLoss, rrRatio float64, side Side) float64`
 Calculates take profit price based on risk-reward ratio.
 - LONG: `tp = entry + (|entry - sl| * ratio)`
 - SHORT: `tp = entry - (|entry - sl| * ratio)`
 
-#### `ValidatePriceLogic(side broker.Side, entry, current float64) error`
+#### `ValidatePriceLogic(side Side, entry, current float64) error`
 Validates entry price logic to prevent market execution.
 - LONG: entry must be below current price
 - SHORT: entry must be above current price
 
-#### `ValidateStopLoss(side broker.Side, entry, stopLoss float64) error`
+#### `ValidateStopLoss(side Side, entry, stopLoss float64) error`
 Validates stop loss placement.
 - LONG: stop loss must be below entry
 - SHORT: stop loss must be above entry
 
-#### `CalculatePnLPercent(side broker.Side, entryPrice, markPrice float64) float64`
+#### `CalculatePnLPercent(side Side, entryPrice, markPrice float64) float64`
 Calculates PnL percentage.
 - LONG: `((mark - entry) / entry) * 100`
 - SHORT: `((entry - mark) / entry) * 100`
 
-#### `CalculateDistanceToPrice(side broker.Side, currentPrice, targetPrice float64) float64`
+#### `CalculateDistanceToPrice(side Side, currentPrice, targetPrice float64) float64`
 Calculates percentage distance from current to target price.
 - LONG: `((target - current) / current) * 100`
 - SHORT: `((current - target) / current) * 100`
 
-#### `CalculateExpectedPnL(side broker.Side, entryPrice, exitPrice, size float64) (nominal, percent float64)`
+#### `CalculateExpectedPnL(side Side, entryPrice, exitPrice, size float64) (nominal, percent float64)`
 Calculates expected PnL for a closing order in both nominal and percentage values.
 
-#### `ValidateInputs(side broker.Side, entryPrice, stopLoss, riskPercent, accountEquity float64) error`
+#### `ValidateInputs(side Side, entryPrice, stopLoss, riskPercent, accountEquity float64) error`
 Validates all calculation inputs.
+
+## Types
+
+### `Side`
+```go
+type Side string
+
+const (
+    SideLong  Side = "LONG"
+    SideShort Side = "SHORT"
+)
+```
+
+Position direction for calculations. This type is defined within calculator-go to ensure **zero dependencies**.
 
 ## Dependencies
 
-- `github.com/agatticelli/trading-go` - Only for `broker.Side` type definition
+**None** - This module uses only Go's standard library (`fmt`, `math`). It defines its own `Side` type to remain completely standalone and reusable across any trading system.
 
 ## Architecture
 
