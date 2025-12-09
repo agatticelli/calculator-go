@@ -3,8 +3,14 @@ package calculator
 import (
 	"fmt"
 	"math"
+)
 
-	"github.com/agatticelli/trading-go/broker"
+// Side represents the position direction
+type Side string
+
+const (
+	SideLong  Side = "LONG"
+	SideShort Side = "SHORT"
 )
 
 // Calculator handles position sizing and risk calculations
@@ -23,11 +29,11 @@ func New(maxLeverage int) *Calculator {
 // Formula: size = risk_amount / price_risk
 // Where: risk_amount = balance * (risk% / 100)
 //        price_risk = |entry - stop_loss|
-func (c *Calculator) CalculateSize(balance, riskPercent, entry, stopLoss float64, side broker.Side) float64 {
+func (c *Calculator) CalculateSize(balance, riskPercent, entry, stopLoss float64, side Side) float64 {
 	riskAmount := balance * (riskPercent / 100)
 
 	var priceRisk float64
-	if side == broker.SideLong {
+	if side == SideLong {
 		priceRisk = entry - stopLoss
 	} else {
 		priceRisk = stopLoss - entry
@@ -56,32 +62,32 @@ func (c *Calculator) CalculateLeverage(size, price, balance float64, maxLeverage
 // Formula:
 //   LONG:  tp = entry + (sl_distance * rr_ratio)
 //   SHORT: tp = entry - (sl_distance * rr_ratio)
-func (c *Calculator) CalculateRRTakeProfit(entry, stopLoss float64, rrRatio float64, side broker.Side) float64 {
+func (c *Calculator) CalculateRRTakeProfit(entry, stopLoss float64, rrRatio float64, side Side) float64 {
 	slDistance := math.Abs(entry - stopLoss)
 
-	if side == broker.SideLong {
+	if side == SideLong {
 		return entry + (slDistance * rrRatio)
 	}
 	return entry - (slDistance * rrRatio)
 }
 
 // ValidatePriceLogic validates order price logic (prevent market execution)
-func (c *Calculator) ValidatePriceLogic(side broker.Side, entry, current float64) error {
-	if side == broker.SideLong && entry >= current {
+func (c *Calculator) ValidatePriceLogic(side Side, entry, current float64) error {
+	if side == SideLong && entry >= current {
 		return fmt.Errorf("LONG limit order entry (%.4f) must be below current price (%.4f)", entry, current)
 	}
-	if side == broker.SideShort && entry <= current {
+	if side == SideShort && entry <= current {
 		return fmt.Errorf("SHORT limit order entry (%.4f) must be above current price (%.4f)", entry, current)
 	}
 	return nil
 }
 
 // ValidateStopLoss validates SL price logic
-func (c *Calculator) ValidateStopLoss(side broker.Side, entry, stopLoss float64) error {
-	if side == broker.SideLong && stopLoss >= entry {
+func (c *Calculator) ValidateStopLoss(side Side, entry, stopLoss float64) error {
+	if side == SideLong && stopLoss >= entry {
 		return fmt.Errorf("LONG stop loss (%.4f) must be below entry (%.4f)", stopLoss, entry)
 	}
-	if side == broker.SideShort && stopLoss <= entry {
+	if side == SideShort && stopLoss <= entry {
 		return fmt.Errorf("SHORT stop loss (%.4f) must be above entry (%.4f)", stopLoss, entry)
 	}
 	return nil
@@ -91,11 +97,11 @@ func (c *Calculator) ValidateStopLoss(side broker.Side, entry, stopLoss float64)
 // Formula:
 //   LONG:  (mark - entry) / entry * 100
 //   SHORT: (entry - mark) / entry * 100
-func (c *Calculator) CalculatePnLPercent(side broker.Side, entryPrice, markPrice float64) float64 {
+func (c *Calculator) CalculatePnLPercent(side Side, entryPrice, markPrice float64) float64 {
 	if entryPrice <= 0 {
 		return 0
 	}
-	if side == broker.SideLong {
+	if side == SideLong {
 		return ((markPrice - entryPrice) / entryPrice) * 100
 	}
 	return ((entryPrice - markPrice) / entryPrice) * 100
@@ -105,11 +111,11 @@ func (c *Calculator) CalculatePnLPercent(side broker.Side, entryPrice, markPrice
 // Formula:
 //   LONG:  (target - current) / current * 100
 //   SHORT: (current - target) / current * 100
-func (c *Calculator) CalculateDistanceToPrice(side broker.Side, currentPrice, targetPrice float64) float64 {
+func (c *Calculator) CalculateDistanceToPrice(side Side, currentPrice, targetPrice float64) float64 {
 	if currentPrice <= 0 {
 		return 0
 	}
-	if side == broker.SideLong {
+	if side == SideLong {
 		return ((targetPrice - currentPrice) / currentPrice) * 100
 	}
 	return ((currentPrice - targetPrice) / currentPrice) * 100
@@ -117,8 +123,8 @@ func (c *Calculator) CalculateDistanceToPrice(side broker.Side, currentPrice, ta
 
 // CalculateExpectedPnL calculates expected PnL for a closing order
 // Returns both nominal (dollar) and percentage values
-func (c *Calculator) CalculateExpectedPnL(side broker.Side, entryPrice, exitPrice, size float64) (nominal float64, percent float64) {
-	if side == broker.SideLong {
+func (c *Calculator) CalculateExpectedPnL(side Side, entryPrice, exitPrice, size float64) (nominal float64, percent float64) {
+	if side == SideLong {
 		nominal = (exitPrice - entryPrice) * size
 	} else {
 		nominal = (entryPrice - exitPrice) * size
@@ -129,7 +135,7 @@ func (c *Calculator) CalculateExpectedPnL(side broker.Side, entryPrice, exitPric
 }
 
 // ValidateInputs validates all calculation inputs
-func (c *Calculator) ValidateInputs(side broker.Side, entryPrice, stopLoss, riskPercent, accountEquity float64) error {
+func (c *Calculator) ValidateInputs(side Side, entryPrice, stopLoss, riskPercent, accountEquity float64) error {
 	if entryPrice <= 0 {
 		return fmt.Errorf("entry price must be positive: %.2f", entryPrice)
 	}
